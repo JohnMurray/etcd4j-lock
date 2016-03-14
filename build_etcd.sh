@@ -17,7 +17,7 @@ git checkout $ETCD_VERSION
 ./build
 
 go get -u github.com/mattn/goreman
-goreman start & nohup >etcd.log 2>&1
+$GOPATH/bin/goreman start & nohup >etcd.log 2>&1
 
 ${TRAVIS:?"This is not a Travis build. All Done"}
 #Temporal solution to travis issue #155
