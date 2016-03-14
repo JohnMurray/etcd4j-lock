@@ -1,0 +1,9 @@
+language: java
+java:
+  - 1.8
+
+before_install:
+  - ./build_etcd.sh v2.2.5
+
+# add env var to detect it during build
+env: TRAVIS=true
