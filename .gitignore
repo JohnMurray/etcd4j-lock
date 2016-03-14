@@ -1,0 +1,7 @@
+# IDE / Editor Ignores
+.idea/
+*.iml
+*.swp
+
+# Java Ignores
+target/
