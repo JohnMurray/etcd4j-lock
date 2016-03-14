@@ -16,6 +16,11 @@ cd etcd
 git checkout $ETCD_VERSION
 ./build
 
+# setup go
+export GOPATH='/tmp/gopath'
+mkdir -p /tmp/gopath
+
+# install goreman and run etcd
 go get -u github.com/mattn/goreman
 $GOPATH/bin/goreman start & nohup >etcd.log 2>&1
 
