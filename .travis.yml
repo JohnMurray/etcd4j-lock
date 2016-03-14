@@ -7,3 +7,4 @@ before_install:
 
 # add env var to detect it during build
 env: TRAVIS=true
+sudo: required
