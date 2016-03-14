@@ -3,7 +3,7 @@ jdk:
   - oraclejdk8
 
 before_install:
-  - ./build_etcd.sh v2.2.5
+  - ./test-launch-etcd.sh v2.2.5
 
 # add env var to detect it during build
 env: TRAVIS=true

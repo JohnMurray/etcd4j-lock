@@ -23,6 +23,7 @@ mkdir -p /tmp/gopath
 # install goreman and run etcd
 go get -u github.com/mattn/goreman
 $GOPATH/bin/goreman start & nohup >etcd.log 2>&1
+sleep 5
 
 ${TRAVIS:?"This is not a Travis build. All Done"}
 #Temporal solution to travis issue #155
