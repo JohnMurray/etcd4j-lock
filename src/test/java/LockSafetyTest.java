@@ -30,12 +30,12 @@ public class LockSafetyTest extends TestBase {
         }
     }
 
-    @Test public void testDirtyLockIsCatchable() throws IOException {
+    @Test public void testDirtyLockIsCatchable() throws IOException, EtcdAuthenticationException, TimeoutException, EtcdException {
         try(EtcdLock lock = new EtcdLock(TestUtil.createClient())) {
             assertThat(lock.acquire()).isTrue();
 
             EtcdClient client = TestUtil.createClient();
-            client.put(lock.getLockName(), "custom-value").send();
+            client.put(lock.getLockName(), "custom-value").send().get();
 
             assertThat(lock.renew(Duration.ofMinutes(5))).isFalse();
         } catch (EtcdDirtyLockException e) {
@@ -43,6 +43,21 @@ public class LockSafetyTest extends TestBase {
             return;
         }
         fail("should have thrown and caught exception and exited");
+    }
+
+    @Test public void multiThreadedRenewIsNotDirty() throws InterruptedException {
+        // not sure a great way to test this other than to test it repeatedly
+        for (int i = 0; i < 100; i++) {
+            try (EtcdLock lock = new EtcdLock(TestUtil.createClient())) {
+                assertThat(lock.acquire()).isTrue();
+                Thread t = new Thread(() -> lock.renew(Duration.ofMinutes(5)));
+                t.start();
+                assertThat(lock.renew(Duration.ofMinutes(5))).isTrue();
+                t.join(3_000);
+            } catch (EtcdDirtyLockException e) {
+                fail("should not be dirty during multi-threaded renew");
+            }
+        }
     }
 
 }
