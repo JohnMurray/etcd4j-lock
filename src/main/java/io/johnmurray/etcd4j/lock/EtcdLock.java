@@ -1,20 +1,21 @@
 package io.johnmurray.etcd4j.lock;
 
+import io.johnmurray.etcd4j.lock.exceptions.EtcdDirtyLockException;
+import io.johnmurray.etcd4j.lock.exceptions.EtcdLockException;
 import mousio.etcd4j.EtcdClient;
-import mousio.etcd4j.promises.EtcdResponsePromise;
 import mousio.etcd4j.requests.EtcdKeyPutRequest;
 import mousio.etcd4j.responses.EtcdAuthenticationException;
 import mousio.etcd4j.responses.EtcdException;
 import mousio.etcd4j.responses.EtcdKeysResponse;
-import mousio.etcd4j.responses.EtcdVersionResponse;
-import org.immutables.value.Value;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.TimeoutException;
+import java.util.regex.Pattern;
 
 /**
  * The main class for creating and using a lock via etcd.
@@ -26,25 +27,27 @@ import java.util.concurrent.TimeoutException;
  */
 public class EtcdLock implements AutoCloseable {
 
-    private final long YEAR = 365;
+    private static final long YEAR = 365;
+    private static final Random RAND = new Random(System.currentTimeMillis());
 
     protected EtcdClient client;
     protected Duration lockTtl;
     protected String name;
-    private Long lockIndex;
 
-    private static Random rand = new Random(System.currentTimeMillis());
+    // todo: track the modified index to make sure only _we_ are modifying the value
+    // todo: throw dirty-lock exceptions if the index changes
+    // same as the create-index for the etcd node
+    private Long lockCreateIndex;
+    private long lockModifiedIndex;
+    private boolean lockHeld;
+    private Logger logger;
 
-    public EtcdLock(EtcdClient client) throws EtcdLockConfigurationException {
+
+    public EtcdLock(EtcdClient client) {
         this.client = client;
         this.lockTtl = Duration.ofDays(YEAR);
-        this.name = "EtcdLock_UnNamed_" + rand.nextLong() + ":" + rand.nextLong();
-
-        // Sanity check to make sure we can connect to etcd
-        EtcdVersionResponse version = this.client.version();
-        if (version == null) {
-            throw new EtcdLockConfigurationException("Could not communicate with etcd server to acquire version");
-        }
+        this.name = "EtcdLock_UnNamed_" + RAND.nextLong() + ":" + RAND.nextLong();
+        this.logger = LoggerFactory.getLogger("etcd-lock");
     }
 
     public EtcdLock withName(String name) {
@@ -63,69 +66,143 @@ public class EtcdLock implements AutoCloseable {
     // LOCK FUNCTIONS
     //
 
+    // TODO 'acquire' should return 'this' or throw. Then I can use it in an ARM block
+    /**
+     * Attempt to acquire a lock.
+     *
+     * @return boolean indicating success
+     */
     synchronized public boolean acquire() {
         String lockContent = "";
         EtcdKeysResponse response;
         try {
-            response = client.put(this.name, lockContent)
+            response = client.put(name, lockContent)
                     .prevExist(false)
-                    .ttl((int) this.lockTtl.getSeconds())
+                    .ttl((int) lockTtl.getSeconds())
                     .send()
                     .get();
+            lockCreateIndex = response.node.modifiedIndex;
+            lockModifiedIndex = response.node.createdIndex;
+            lockHeld = true;
         } catch (IOException | EtcdException | TimeoutException | EtcdAuthenticationException ex) {
-            // TODO: do some sort of logging to a default slf4j logger or some magic like other libs do
-            ex.printStackTrace();
-            return false;
+            logger.error("Error encountered when attempting to acquire lock", ex);
+            lockHeld = false;
         }
-        this.lockIndex = response.node.modifiedIndex;
-        return true;
+        return lockHeld;
     }
 
     /**
      * Monotonically increasing number that is granted for each lock. This is useful for
-     * lock fencing.
-     * @return
+     * lock fencing. May be used with {{getLockName()}} for fencing.
+     *
+     * @see this.getLockName()
      */
-    synchronized public Long lockToken() {
-        if (lockIndex == null) {
+    synchronized public Long getLockToken() {
+        if (! lockHeld || lockCreateIndex == null) {
             throw new RuntimeException("Lock token cannot be retrieved if no lock has been acquired");
         }
-        return this.lockIndex;
+        return lockCreateIndex;
     }
 
     /**
-     * Refresh the current lock-lease
-     * @return
+     * Get the current lock name. This may have been auto-generated if not user-supplied. May be used
+     * with {{getLockToken()}} for fencing.
+     *
+     * @see this.getLockToken()
      */
-    synchronized public boolean renew(Duration amount) {
-        EtcdKeyPutRequest request = client.put(this.name, null).ttl((int)amount.getSeconds());
+    synchronized public String getLockName() {
+        return name;
+    }
+
+    /**
+     * Refresh the current lock-lease.
+     *
+     * @return boolean indicating success
+     * @throws EtcdLockException If no lock is held
+     */
+    synchronized public boolean renew(Duration amount) throws EtcdLockException {
+        // validate that we have a lock
+        if (! lockHeld) {
+            throw new EtcdLockException("Lock cannot be released unless first acquired");
+        }
+
+        EtcdKeyPutRequest request = client.put(this.name, null)
+                .prevIndex(lockModifiedIndex)
+                .prevExist(true)
+                .ttl((int)amount.getSeconds());
         Map<String, String> requestParams = request.getRequestParams();
         if (requestParams.containsKey("value")) {
             requestParams.remove("value");
         }
-        requestParams.put("prevExist", "true");
         requestParams.put("refresh", "true");
         try {
-            request.send().get();
-        } catch (EtcdException | EtcdAuthenticationException | IOException | TimeoutException e) {
-            // TODO: do some sort of logging
-            e.printStackTrace();
+            EtcdKeysResponse resp = request.send().get();
+            lockModifiedIndex = resp.node.modifiedIndex;
+        } catch (EtcdAuthenticationException | IOException | TimeoutException ex) {
+            logger.error("Lock could not be renewed", ex);
             return false;
+        } catch (EtcdException ex) {
+            handleDirtyLock(ex);
+            logger.error("Lock could not be renewed", ex);
         }
         return true;
     }
 
-    synchronized public void release() {
-        try {
-            client.delete(this.name).prevIndex(this.lockIndex).send().get();
-        } catch (IOException | EtcdException | EtcdAuthenticationException | TimeoutException e) {
-            // TODO: do some sort of logging
+    /**
+     * Release the currently held lock.
+     *
+     * @return boolean indicating success
+     * @throws EtcdLockException If no lock is held
+     */
+    synchronized public boolean release() throws EtcdLockException {
+        // validate that we have a lock
+        if (! lockHeld) {
+            throw new EtcdLockException("Lock cannot be released unless first acquired");
         }
+
+        // attempt to release the lock
+        try {
+            client.delete(name).prevIndex(lockModifiedIndex).send().get();
+            lockHeld = false;
+            return true;
+        } catch (IOException | TimeoutException | EtcdAuthenticationException  e) {
+            logger.error("Lock could not be released", e);
+        } catch (EtcdException e) {
+            handleDirtyLock(e);
+            logger.error("Lock could not be released", e);
+        }
+        return false;
     }
 
 
     @Override
-    public void close() throws Exception {
-        client.close();
+    public void close() {
+        // attempt to close the connection
+        try {
+            if (lockHeld) {
+                release();
+            }
+        } catch (EtcdLockException ex) { }
+
+        // close the Etcd connection
+        try {
+            client.close();
+        } catch (IOException ex) {
+            logger.error("Could not close client", ex);
+        }
+    }
+
+
+    /**
+     * Check an {{EtcdLockException}} to make sure the error thrown is not integrity related. If it is,
+     * raise an {{EtcdDirtyLockException}}.
+     *
+     * @throws io.johnmurray.etcd4j.lock.exceptions.EtcdDirtyLockException
+     */
+    private void handleDirtyLock(EtcdException ex) throws EtcdDirtyLockException {
+        // compare failed
+        if (ex.errorCode == 101) {
+            throw new EtcdDirtyLockException("Lock has been tampered with", ex);
+        }
     }
 }
