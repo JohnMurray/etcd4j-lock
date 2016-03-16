@@ -92,16 +92,18 @@ public class EtcdLock implements AutoCloseable {
     }
 
     /**
-     * Monotonically increasing number that is granted for each lock. This is useful for
-     * lock fencing. May be used with {{getLockName()}} for fencing.
+     * A token that is unique to this lock. This is useful for performing 'fencing' operations.
+     * The token is structured in the form of:
+     *
+     *      NAME__NUMBER
      *
      * @see this.getLockName()
      */
-    synchronized public Long getLockToken() {
+    synchronized public EtcdLockToken getLockToken() {
         if (! lockHeld || lockCreateIndex == null) {
             throw new RuntimeException("Lock token cannot be retrieved if no lock has been acquired");
         }
-        return lockCreateIndex;
+        return ImmutableEtcdLockToken.builder().name(getLockName()).index(lockCreateIndex).build();
     }
 
     /**
