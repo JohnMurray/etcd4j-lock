@@ -99,8 +99,11 @@ try( EtcdLock lock = new EtcdLock(new EtcdClient()) ) {
 
 ## Open Features
 
+- [x] Dead simple lock
 - [ ] Retry lock acquire attempts (`withRetries(N)`)
 - [ ] Acquire attempt timeout (`withAcquireTimeout(Duration)`)
+- [ ] Reader/Writer lock
+- [ ] Other lock types??
 
 
 
