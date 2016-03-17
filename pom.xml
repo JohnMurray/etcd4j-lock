@@ -8,6 +8,32 @@
   <artifactId>etcd4j-lock</artifactId>
   <version>0.1-SNAPSHOT</version>
 
+  <name>${project.groupId}:${project.artifactId}</name>
+  <description>Distributed locks built on top of the etcd4j library</description>
+  <url>http://github.com/JohnMurray/etcd4j-lock.git</url>
+
+  <licenses>
+    <license>
+      <name>The Apache License, Version 2.0</name>
+      <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+    </license>
+  </licenses>
+
+  <developers>
+    <developer>
+      <name>John Murray</name>
+      <email>me@johnmurray.io</email>
+      <organization>JohnMurray.io</organization>
+      <organizationUrl>http://www.johnmurray.io</organizationUrl>
+    </developer>
+  </developers>
+
+  <scm>
+    <connection>scm:git:git@github.com:JohnMurray/ectd4j-lock.git</connection>
+    <developerConnection>scm:git:git@github.com:JohnMurray/ectd4j-lock.git</developerConnection>
+    <url>git@github.com:JohnMurray/ectd4j-lock.git</url>
+  </scm>
+
 
   <dependencies>
     <!-- ACTUAL Runtime Dependencies -->
