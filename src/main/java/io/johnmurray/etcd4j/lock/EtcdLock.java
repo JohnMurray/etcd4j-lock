@@ -97,7 +97,7 @@ public class EtcdLock implements AutoCloseable {
      *
      *      NAME__NUMBER
      *
-     * @see this.getLockName()
+     * see this.getLockName()
      */
     synchronized public EtcdLockToken getLockToken() {
         if (! lockHeld || lockCreateIndex == null) {
@@ -110,7 +110,7 @@ public class EtcdLock implements AutoCloseable {
      * Get the current lock name. This may have been auto-generated if not user-supplied. May be used
      * with {{getLockToken()}} for fencing.
      *
-     * @see this.getLockToken()
+     * see this.getLockToken()
      */
     synchronized public String getLockName() {
         return name;
