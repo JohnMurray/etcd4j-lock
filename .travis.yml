@@ -4,6 +4,7 @@ jdk:
 
 before_install:
   - sudo apt-get install -y gnupg
+  - ./gen-key.sh
   - ./test-launch-etcd.sh v2.2.5
 
 # add env var to detect it during build
