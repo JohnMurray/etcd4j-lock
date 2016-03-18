@@ -1,7 +1,7 @@
 # etcd4j-lock
 
 [![Build Status](https://travis-ci.org/JohnMurray/etcd4j-lock.svg?branch=master)](https://travis-ci.org/JohnMurray/etcd4j-lock)
-[![Maven Central](https://img.shields.io/maven-central/v/io.johnmurray/etcd4j-lock.svg)]()
+[![Maven Central](https://img.shields.io/maven-central/v/io.johnmurray/etcd4j-lock.svg)](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22io.johnmurray%22%20AND%20a%3A%22etcd4j-lock%22)
 
 A simple locking implementation built on top of [etcd4j](https://github.com/jurmous/etcd4j).
 
