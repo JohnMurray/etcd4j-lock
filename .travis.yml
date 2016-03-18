@@ -3,7 +3,8 @@ jdk:
   - oraclejdk8
 
 before_install:
-  - sudo apt-get install -y gnupg
+  - sudo apt-get install -y gnupg rng-tools
+  - sudo rngd -r /dev/urandom
   - sudo ./gen-key.sh
   - ./test-launch-etcd.sh v2.2.5
 
