@@ -6,7 +6,13 @@ A simple locking implementation built on top of [etcd4j](https://github.com/jurm
 
 ## Installing
 
-coming soon.
+```xml
+<dependency>
+  <groupId>io.johnmurray</groupId>
+  <artifactId>etcd4j-lock</artifactId>
+  <version>0.1</version>
+</dependency>
+```
 
 ## Simple Usage
 
