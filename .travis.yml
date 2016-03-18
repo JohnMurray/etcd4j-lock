@@ -7,7 +7,7 @@ before_install:
   - sudo rngd -r /dev/urandom
   - sudo ./gen-key.sh
   - ./test-launch-etcd.sh v2.2.5
-  - mvn update
+  - mvn -q clean
 
 # add env var to detect it during build
 env: TRAVIS=true
