@@ -5,3 +5,6 @@
 
 # Java Ignores
 target/
+
+# misc. stuff
+etcd/
