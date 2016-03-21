@@ -1,5 +1,6 @@
 import mousio.etcd4j.EtcdClient;
 
+import java.lang.management.ManagementFactory;
 import java.net.URI;
 
 /**
@@ -13,5 +14,9 @@ public class TestUtil {
                 URI.create("http://127.0.0.1:22379"),
                 URI.create("http://127.0.0.1:32379")
         );
+    }
+
+    public static long currentThreadCount() {
+        return ManagementFactory.getThreadMXBean().getThreadCount();
     }
 }
