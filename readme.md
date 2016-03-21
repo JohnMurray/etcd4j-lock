@@ -7,6 +7,9 @@ A simple locking implementation built on top of [etcd4j](https://github.com/jurm
 
 ## Installing
 
+Currently this library is targetted to Java 8. I do not have plans at the moment to target anyting lower
+than this.
+
 ```xml
 <dependency>
   <groupId>io.johnmurray</groupId>
